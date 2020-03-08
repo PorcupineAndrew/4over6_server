@@ -19,5 +19,13 @@ $(TARGET):$(OBJS) $(HEADS)
 $(OBJDIR)/%.o:$(SRCDIR)/%.c
 	$(CC) $(CFLAGS) -o $@ -c $<
 
+TAG := cscope.files cscope.in.out cscope.out cscope.po.out tags
+.PHONY: clean tags
 clean:
-	rm -rf $(BINDIR) $(OBJDIR)
+	rm -rf $(BINDIR) $(OBJDIR) $(TAG)
+
+tags: 
+	rm -f $(TAG)
+	find . -type f -name "*.[ch]" >cscope.files
+	cscope -bq
+	ctags -L cscope.files --fields=+iaS --extra=+q
