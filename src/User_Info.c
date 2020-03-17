@@ -7,9 +7,11 @@ void init_user_info(uint32_t start_addr, int n_users) {
         user_info_table[i].count = FREE;
     }
 
+    char s[24];
+    inet_ntop(AF_INET, &user_info_table[0].v4addr.s_addr, s, 24);
     fprintf(stdout, 
-        "User info init\n\tstart_addr: 0x%08x\n\tmax_users: %d\n",
-        start_addr, n_users
+        "User info init\n\tstart_addr: %s\n\tmax_users: %d\n",
+        s, n_users
     );
 }
 
