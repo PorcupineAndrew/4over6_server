@@ -61,7 +61,7 @@ int main() {
                         sbuf, sizeof sbuf,
                         NI_NUMERICSERV | NI_NUMERICHOST) == 0) {
                         fprintf(stdout, 
-                            "Accepted connection\n\tdescriptor: %d\n\thost: %s\n\tport: %s",
+                            "Accepted connection\n\tdescriptor: %d\n\thost: %s\n\tport: %s\n",
                             infd, hbuf, sbuf
                         );
                     }
@@ -82,7 +82,7 @@ int main() {
                     }
                 } continue;
             } else {
-                
+                printf("something happened\n");
             }
             
         }
