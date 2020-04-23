@@ -13,6 +13,12 @@ int add_epoll(int fd) {
     return epoll_ctl(epfd, EPOLL_CTL_ADD, fd, &event);
 }
 
+int rm_epoll(int fd) {
+    event.data.fd = fd;
+    event.events = EPOLLIN;
+    return epoll_ctl(epfd, EPOLL_CTL_DEL, fd, &event);
+}
+
 void epoll_init(int max_ev) {
     // 创建epoll句柄
     if ((epfd = epoll_create1(0)) < 0) {

@@ -13,6 +13,9 @@
 #include <netdb.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <linux/if_tun.h>
+#include <linux/if.h>
+#include <sys/ioctl.h>
 
 #ifndef __cplusplus
 typedef unsigned char bool;
@@ -23,22 +26,23 @@ typedef unsigned char bool;
 #define IPADDR(a, b, c, d) (((a) << 24) | ((b) << 16) | ((c) << 8) | (d))   // 地址转换
 #define POOL_START_ADDR IPADDR(13, 8, 0, 2)                                 // 地址池起始地址
 
-// 客户信息
-#define ASSIGNED            1
-#define FREE                0
-
-// 消息类型
+// 消息相关
 #define IP_REQUEST          100
 #define IP_RESPONSE         101
 #define NETWORK_REQUEST     102
 #define NETWORK_RESPONSE    103
 #define KEEPALIVE           104
+#define MSG_HEADER_SIZE     5
 
 // 服务器相关
 #define SERVER_LISTEN_PORT  10086
 #define MAX_LISTEN_QUEUE    16
+#define KEEPLIVE_COUNT      20
+#define MY_TUN_NAME         "tun0"
 
 // epoll相关
 #define MAXEVENTS           64
+
+#define debug(x) fprintf(stderr, x)
 
 #endif

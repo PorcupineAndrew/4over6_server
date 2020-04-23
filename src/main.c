@@ -1,21 +1,29 @@
 #include "Msg.h"
 #include "User_Info_Table.h"
 
+#define IGNORE 1
+
 int listen_fd;
 int epfd;
+int tun_fd;
 struct epoll_event event;
 struct epoll_event *events;
 pthread_mutex_t MUTEX;
+pthread_t keep_alive_thread;
 
 void init_user_info(uint32_t start_addr, int n_user);
 void init_server(int port, char* addr, int cons, char* if_name);
-void epoll_init();
+void init_tun(const char* devname);
+void epoll_init(int max_ev);
 int add_epoll(int fd);
 bool ev_err(uint32_t ev);
 int insert_user_table(int infd, struct in6_addr *inaddr, int n_users, pthread_mutex_t *mutex);
 int make_socket_non_blocking(int fd);
+void init_keep_alive_thread();
 
 int main() {
+    int running = 1;
+
     init_server(
         SERVER_LISTEN_PORT,
         // NULL,
@@ -26,13 +34,25 @@ int main() {
 
     epoll_init(MAXEVENTS);
 
+#if !IGNORE
+    init_tun(MY_TUN_NAME);
+    // 使用epoll而非thread
+    if (add_epoll(tun_fd) < 0) {
+        perror("add epoll");
+        exit(EXIT_FAILURE);
+    }
+#endif
+
     init_user_info(POOL_START_ADDR, N_USERS);
 
-    while (1) {
+    init_keep_alive_thread();
+
+    while (running) {
         int n = epoll_wait(epfd, events, MAXEVENTS, -1);
         for (int i = 0; i < n; i++) {
-            // 事件错误
+            // 异常事件
             if (ev_err(events[i].events)) {
+                // TODO
                 fprintf(stderr, "epoll error\n");
                 close(events[i].data.fd);
                 continue;
@@ -81,10 +101,11 @@ int main() {
                         continue;
                     }
                 } continue;
-            } else {
-                printf("something happened\n");
-            }
-            
+            } else if (events[i].data.fd == tun_fd) {
+                // TODO
+                fprintf(stdout, "something happened");
+            } else
+                fprintf(stdout, "something happened");
         }
     }
 }

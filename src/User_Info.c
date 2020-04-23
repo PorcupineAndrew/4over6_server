@@ -4,7 +4,6 @@ void init_user_info(uint32_t start_addr, int n_users) {
     for(int i = 0; i < n_users; i++) {
         user_info_table[i].fd = -1;
         user_info_table[i].v4addr.s_addr = htonl(start_addr+i); // 网络字节序
-        user_info_table[i].count = FREE;
     }
 
     char s[24];
@@ -19,9 +18,9 @@ int insert_user_table(int infd, struct in6_addr *inaddr, int n_users, pthread_mu
 	pthread_mutex_lock(mutex);
     int i = 0;
     for(; i < n_users; i++) {
-        if (user_info_table[i].count == FREE) {
-            user_info_table[i].count = ASSIGNED;
+        if (user_info_table[i].fd == -1) {
             user_info_table[i].fd = infd;
+            user_info_table[i].count = KEEPLIVE_COUNT;
             user_info_table[i].secs = time(NULL);
             memcpy(&user_info_table[i].v6addr, inaddr, sizeof(struct in6_addr));
             break;
