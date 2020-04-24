@@ -15,6 +15,7 @@
 #include <pthread.h>
 #include <linux/if_tun.h>
 #include <linux/if.h>
+#include <linux/ip.h>
 #include <sys/ioctl.h>
 
 #ifndef __cplusplus
@@ -32,7 +33,7 @@ typedef unsigned char bool;
 #define NETWORK_REQUEST     102
 #define NETWORK_RESPONSE    103
 #define KEEPALIVE           104
-#define MSG_HEADER_SIZE     5
+#define MSG_HEADER_SIZE     8
 
 // 服务器相关
 #define SERVER_LISTEN_PORT  10086

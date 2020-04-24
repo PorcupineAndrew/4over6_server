@@ -18,8 +18,10 @@ void epoll_init(int max_ev);
 int add_epoll(int fd);
 bool ev_err(uint32_t ev);
 int insert_user_table(int infd, struct in6_addr *inaddr, int n_users, pthread_mutex_t *mutex);
+void rm_user_by_fd(int fd, pthread_mutex_t *mutex);
 int make_socket_non_blocking(int fd);
 void init_keep_alive_thread();
+void packet_forward();
 
 int main() {
     int running = 1;
@@ -48,12 +50,12 @@ int main() {
     init_keep_alive_thread();
 
     while (running) {
-        int n = epoll_wait(epfd, events, MAXEVENTS, -1);
+        int n = epoll_wait(epfd, events, 1, -1);
         for (int i = 0; i < n; i++) {
             // 异常事件
             if (ev_err(events[i].events)) {
-                // TODO
-                fprintf(stderr, "epoll error\n");
+                fprintf(stderr, "epoll evnet exception\n");
+                rm_user_by_fd(events[i].data.fd, &MUTEX);
                 close(events[i].data.fd);
                 continue;
             }
@@ -102,10 +104,13 @@ int main() {
                     }
                 } continue;
             } else if (events[i].data.fd == tun_fd) {
+                packet_forward();
+            } else {
                 // TODO
-                fprintf(stdout, "something happened");
-            } else
-                fprintf(stdout, "something happened");
+                char buf[1024] = {0};
+                int len = recv(events[i].data.fd, buf, sizeof(buf), 0);
+                fprintf(stdout, "read %d bytes\n", len);
+            }
         }
     }
 }

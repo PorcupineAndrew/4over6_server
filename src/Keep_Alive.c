@@ -5,7 +5,7 @@ extern pthread_mutex_t MUTEX;
 extern pthread_t keep_alive_thread;
 int rm_epoll(int fd);
 
-char keepalive_buf[5];
+char keepalive_buf[MSG_HEADER_SIZE];
 
 void* keep_alive_poll() {
     pthread_mutex_lock(&MUTEX);
@@ -16,14 +16,11 @@ void* keep_alive_poll() {
         for (int i = 0; i < N_USERS; i++) {
             int fd = user_info_table[i].fd;
             if (fd == -1) continue;
-debug("FOUND\n");
             if (time(NULL) - user_info_table[i].secs > 60) {
                 user_info_table[i].fd = -1;
                 rm_epoll(fd);
                 close(fd);
-debug("RELEASE\n");
             } else if (--user_info_table[i].count == 0) {
-debug("KEEPALIVE\n");
                 user_info_table[i].count = KEEPLIVE_COUNT;
                 struct Msg *kp_msg = (struct Msg *) keepalive_buf;
                 kp_msg->length = MSG_HEADER_SIZE;

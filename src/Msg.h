@@ -12,7 +12,7 @@
 **/
 struct Msg {
     int length;
-    char type;
+    char type;          // NOTE: padding here
     char data[4096];
 };
 

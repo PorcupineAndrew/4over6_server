@@ -40,3 +40,25 @@ int insert_user_table(int infd, struct in6_addr *inaddr, int n_users, pthread_mu
 
     return 0;
 }
+
+struct User_Info* get_user_by_IPv4(uint32_t addr, pthread_mutex_t *mutex) {
+    pthread_mutex_lock(mutex);
+    for (int i = 0; i < N_USERS; i++) {
+        if (user_info_table[i].fd != -1 && (user_info_table[i].v4addr.s_addr == addr)) {
+            pthread_mutex_unlock(mutex);
+            return &user_info_table[i];
+        }
+    }
+    pthread_mutex_unlock(mutex);
+    return NULL;
+}
+
+void rm_user_by_fd(int fd, pthread_mutex_t *mutex) {
+    pthread_mutex_lock(mutex);
+    for (int i = 0; i < N_USERS; i++) {
+        if (user_info_table[i].fd == fd) {
+            user_info_table[i].fd = -1;
+        }
+    }
+    pthread_mutex_unlock(mutex);
+}
