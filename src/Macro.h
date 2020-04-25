@@ -17,6 +17,7 @@
 #include <linux/if.h>
 #include <linux/ip.h>
 #include <sys/ioctl.h>
+#include <assert.h>
 
 #ifndef __cplusplus
 typedef unsigned char bool;
@@ -44,6 +45,11 @@ typedef unsigned char bool;
 // epoll相关
 #define MAXEVENTS           64
 
-#define debug(x) fprintf(stderr, x)
+// debug相关
+#define DEBUG               1
+#define debugf(fmt, ...) \
+            do { if (DEBUG) fprintf(stderr, "DEBUG-%s:%d:%s(): " fmt, __FILE__, \
+                    __LINE__, __func__, __VA_ARGS__); } while (0)
+#define debug(x) debugf("%s", (x))
 
 #endif

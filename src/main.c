@@ -18,12 +18,14 @@ void epoll_init(int max_ev);
 int add_epoll(int fd);
 bool ev_err(uint32_t ev);
 int insert_user_table(int infd, struct in6_addr *inaddr, int n_users, pthread_mutex_t *mutex);
+struct User_Info* get_user_by_fd(int fd, pthread_mutex_t *mutex);
 void rm_user_by_fd(int fd, pthread_mutex_t *mutex);
 int make_socket_non_blocking(int fd);
 void init_keep_alive_thread();
 void packet_forward();
 
 int main() {
+    assert(sizeof(struct Msg) == 4096+MSG_HEADER_SIZE);
     int running = 1;
 
     init_server(
@@ -54,7 +56,7 @@ int main() {
         for (int i = 0; i < n; i++) {
             // 异常事件
             if (ev_err(events[i].events)) {
-                fprintf(stderr, "epoll evnet exception\n");
+                debug("epoll event exception\n");
                 rm_user_by_fd(events[i].data.fd, &MUTEX);
                 close(events[i].data.fd);
                 continue;
@@ -90,7 +92,7 @@ int main() {
 
                     // 更新表
                     if (insert_user_table(infd, &in_addr.sin6_addr, N_USERS, &MUTEX) < 0) {
-                        fprintf(stderr, "user table full\n");
+                        debug("user table full\n");
                         close(infd);
                         continue;
                     }
@@ -104,12 +106,49 @@ int main() {
                     }
                 } continue;
             } else if (events[i].data.fd == tun_fd) {
+                //  隧道包转发
                 packet_forward();
-            } else {
-                // TODO
-                char buf[1024] = {0};
-                int len = recv(events[i].data.fd, buf, sizeof(buf), 0);
-                fprintf(stdout, "read %d bytes\n", len);
+            } else if (events[i].events & EPOLLIN) {
+                // 用户包处理
+                int fd = events[i].data.fd;
+                struct User_Info *user_info = get_user_by_fd(fd, &MUTEX);
+                if (user_info == NULL) {
+                    debug("get_user_info_by_fd\n");
+                    continue;
+                }
+                debug("find user info\n");
+
+                struct Msg msg;
+                int ret = recv(fd, (void*)&msg, MSG_HEADER_SIZE, 0);
+                if (ret <= 0) {
+                    debugf("recv from user: %d\n", ret);
+                    continue;
+                }
+                while (ret < MSG_HEADER_SIZE) {
+                    ret += recv(fd, (void*)&msg+ret, MSG_HEADER_SIZE-ret, 0);
+                }
+                debug("recv header\n");
+
+                int len = msg.length;
+                if (len > 4096 || len < MSG_HEADER_SIZE) {
+                    debugf("invalid msg length %d\n", len);
+                    continue;
+                }
+                while (ret < len) {
+                    ret += recv(fd, (void*)&msg+ret, len-ret, 0);
+                }
+                debug("recv msg\n");
+
+                if (msg.type == IP_REQUEST) {
+                    debug("ip request\n");
+                } else if (msg.type == NETWORK_REQUEST) {
+                    debug("network request\n");
+                } else if (msg.type == KEEPALIVE) {
+                    debug("keepalive\n");
+                } else {
+                    debugf("unexpected Msg type %d\n", msg.type);
+                }
+
             }
         }
     }

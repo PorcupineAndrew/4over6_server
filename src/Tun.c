@@ -50,7 +50,7 @@ void packet_forward() {
     if (POOL_START_ADDR <= dst_addr && dst_addr < POOL_START_ADDR + N_USERS) {
         struct User_Info *user_info = get_user_by_IPv4(dst_addr, &MUTEX);
         if (user_info == NULL) {
-            fprintf(stderr, "no valid user for %s\n", dbuf);
+            debugf("no valid user for %s\n", dbuf);
             return;
         }
 
