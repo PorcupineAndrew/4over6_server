@@ -39,6 +39,6 @@ void init_keep_alive_thread() {
         exit(EXIT_FAILURE);
     }
 
-    fprintf(stdout, "init keep_alive_thread\n");
+    info("init keep_alive_thread\n");
 }
     

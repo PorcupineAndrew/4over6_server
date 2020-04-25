@@ -2,7 +2,7 @@
 #-*- coding: utf-8 -*-
 # **********************************************************************
 # * Description   : test script for 4over6
-# * Last change   : 21:06:06 2020-03-17
+# * Last change   : 23:13:20 2020-04-25
 # * Author        : Yihao Chen
 # * Email         : chenyiha17@mails.tsinghua.edu.cn
 # * License       : www.opensource.org/licenses/bsd-license.php
@@ -11,7 +11,7 @@ import socket
 import sys
 import threading
 
-BYTEORDER = 'big'
+BYTEORDER = 'little'
 SERVER = {
     "v6addr": "fe80::d4a2:99ab:92c8:f22", 
     "port": 10086,
@@ -39,13 +39,13 @@ class Msg:
     def __init__(self, _type: int, _data: bytes):
         self.type = _type
         self.data = _data
-        self.length = len(self.data) + 5
+        self.length = len(self.data) + 8
 
     def to_bytes(self):
-        self.length = len(self.data) + 5
+        self.length = len(self.data) + 8
         kwargs = dict(byteorder=BYTEORDER, signed=True)
         buf = self.length.to_bytes(4, **kwargs)
-        buf += self.type.to_bytes(1, **kwargs)
+        buf += self.type.to_bytes(4, **kwargs)
         buf += self.data
         return buf
 
@@ -57,6 +57,8 @@ def recv():
     chunks = [s.recv(4)]
     totalrecv = 4
     Len = int.from_bytes(chunks[0], **kwargs)
+    if Len <= 0 or Len > 4104:
+        return None
     while totalrecv < Len:
         chunk = s.recv(Len - totalrecv)
         if chunk == b'':
@@ -68,12 +70,16 @@ def recv():
 def handle_recv():
     while True:
         msg = recv()
+        if msg is None:
+            print("socket broken")
+            break
         print("receive: ")
         print(f"\tlength:\t{msg.length}")
         print(f"\ttype:\t{msg.type}")
         print(f"\tdata:\t{msg.data.decode()}")
 
 t = threading.Thread(target=handle_recv)
+t.start()
 
 def send(_type, _data):
     tosend = Msg(_type, _data).to_bytes()
@@ -92,4 +98,3 @@ while True:
     except Exception as e:
         print(e)
         continue
-

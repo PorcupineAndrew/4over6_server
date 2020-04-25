@@ -22,7 +22,7 @@ void init_tun(const char* devname) {
         exit(EXIT_FAILURE);
     }
 
-    fprintf(stdout, "Tun init: %s\n", devname);
+    infof("Tun init: %s\n", devname);
 }
 
 char packet_buf[1500];
@@ -42,10 +42,10 @@ void packet_forward() {
         perror("read ip packet");
     }
 
-    char sbuf[16], dbuf[16];
+    char sbuf[INET_ADDRSTRLEN], dbuf[INET_ADDRSTRLEN];
     inet_ntop(AF_INET, &hdr->saddr, sbuf, sizeof(sbuf));
     inet_ntop(AF_INET, &hdr->daddr, dbuf, sizeof(sbuf));
-    fprintf(stdout, "packet from %s to %s with size %d", sbuf, dbuf, length);
+    infof("packet from %s to %s with size %d", sbuf, dbuf, length);
 
     if (POOL_START_ADDR <= dst_addr && dst_addr < POOL_START_ADDR + N_USERS) {
         struct User_Info *user_info = get_user_by_IPv4(dst_addr, &MUTEX);

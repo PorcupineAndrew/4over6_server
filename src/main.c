@@ -25,7 +25,7 @@ void init_keep_alive_thread();
 void packet_forward();
 
 int main() {
-    assert(sizeof(struct Msg) == 4096+MSG_HEADER_SIZE);
+    assert(MSG_HEADER_SIZE == 8);
     int running = 1;
 
     init_server(
@@ -84,7 +84,7 @@ int main() {
                         hbuf, sizeof hbuf,
                         sbuf, sizeof sbuf,
                         NI_NUMERICSERV | NI_NUMERICHOST) == 0) {
-                        fprintf(stdout, 
+                        infof(
                             "Accepted connection\n\tdescriptor: %d\n\thost: %s\n\tport: %s\n",
                             infd, hbuf, sbuf
                         );
@@ -121,13 +121,13 @@ int main() {
                 struct Msg msg;
                 int ret = recv(fd, (void*)&msg, MSG_HEADER_SIZE, 0);
                 if (ret <= 0) {
-                    debugf("recv from user: %d\n", ret);
+                    debugf("recv from user: %d bytes\n", ret);
                     continue;
                 }
                 while (ret < MSG_HEADER_SIZE) {
                     ret += recv(fd, (void*)&msg+ret, MSG_HEADER_SIZE-ret, 0);
                 }
-                debug("recv header\n");
+                debug("recv msg header\n");
 
                 int len = msg.length;
                 if (len > 4096 || len < MSG_HEADER_SIZE) {
@@ -137,14 +137,33 @@ int main() {
                 while (ret < len) {
                     ret += recv(fd, (void*)&msg+ret, len-ret, 0);
                 }
-                debug("recv msg\n");
+                debug("recv msg data\n");
 
                 if (msg.type == IP_REQUEST) {
                     debug("ip request\n");
+                    struct Msg to_send;
+                    char ip[INET_ADDRSTRLEN];
+                    inet_ntop(AF_INET, &user_info->v4addr.s_addr, ip, sizeof(ip));
+                    sprintf(to_send.data, "%s "ROUTE" "DNS1" "DNS2" "DNS3, ip);
+                    debugf("send data [%s]\n", to_send.data);
+                    to_send.type = IP_RESPONSE;
+                    to_send.length = strlen(to_send.data) + MSG_HEADER_SIZE;
+                    if (send(fd, &to_send, to_send.length, 0) < 0) {
+                        perror("send ip response");
+                    }
                 } else if (msg.type == NETWORK_REQUEST) {
                     debug("network request\n");
+                #if !IGNORE
+                    int send_len = len-MSG_HEADER_SIZE;
+                    if (write(tun_fd, msg.data, send_len) != send_len) {
+                        perror("write tun");
+                    }
+                #endif
                 } else if (msg.type == KEEPALIVE) {
                     debug("keepalive\n");
+                    pthread_mutex_lock(&MUTEX);
+                    user_info->secs = time(NULL);
+                    pthread_mutex_unlock(&MUTEX);
                 } else {
                     debugf("unexpected Msg type %d\n", msg.type);
                 }
@@ -152,4 +171,5 @@ int main() {
             }
         }
     }
+    return 0;
 }

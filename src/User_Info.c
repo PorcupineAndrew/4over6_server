@@ -6,9 +6,9 @@ void init_user_info(uint32_t start_addr, int n_users) {
         user_info_table[i].v4addr.s_addr = htonl(start_addr+i); // 网络字节序
     }
 
-    char s[24];
-    inet_ntop(AF_INET, &user_info_table[0].v4addr.s_addr, s, 24);
-    fprintf(stdout, 
+    char s[INET_ADDRSTRLEN];
+    inet_ntop(AF_INET, &user_info_table[0].v4addr.s_addr, s, sizeof(s));
+    infof( 
         "User info init\n\tstart_addr: %s\n\tmax_users: %d\n",
         s, n_users
     );
@@ -30,10 +30,10 @@ int insert_user_table(int infd, struct in6_addr *inaddr, int n_users, pthread_mu
 
     if (i == n_users) return -1;
 
-    char s4[24], s6[64];
-    inet_ntop(AF_INET, &user_info_table[i].v4addr.s_addr, s4, 24);
-    inet_ntop(AF_INET6, inaddr, s6, 64);
-    fprintf(stdout, 
+    char s4[INET_ADDRSTRLEN], s6[INET6_ADDRSTRLEN];
+    inet_ntop(AF_INET, &user_info_table[i].v4addr.s_addr, s4, sizeof(s4));
+    inet_ntop(AF_INET6, inaddr, s6, sizeof(s6));
+    infof( 
         "User info update\n\tindex: %d\n\tv4_addr: %s\n\tv6_addr: %s\n",
         i, s4, s6
     );
@@ -74,5 +74,3 @@ void rm_user_by_fd(int fd, pthread_mutex_t *mutex) {
     }
     pthread_mutex_unlock(mutex);
 }
-
-

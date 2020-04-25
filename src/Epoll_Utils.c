@@ -35,7 +35,7 @@ void epoll_init(int max_ev) {
     // 分配事件缓冲区
     events = calloc(max_ev, sizeof event);
 
-    fprintf(stdout, 
+    infof( 
         "Epoll init\n\tevent_buffer_size: %d\n",
         max_ev
     );
