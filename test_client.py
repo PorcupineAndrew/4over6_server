@@ -2,7 +2,7 @@
 #-*- coding: utf-8 -*-
 # **********************************************************************
 # * Description   : test script for 4over6
-# * Last change   : 23:13:20 2020-04-25
+# * Last change   : 08:55:54 2020-04-26
 # * Author        : Yihao Chen
 # * Email         : chenyiha17@mails.tsinghua.edu.cn
 # * License       : www.opensource.org/licenses/bsd-license.php
@@ -30,8 +30,8 @@ class Msg:
     @staticmethod
     def to_Msg(buf: bytes):
         kwargs = dict(byteorder=BYTEORDER, signed=True)
-        length = int.from_bytes(buf[:4], **kwargs)
-        assert length == len(buf)
+        _length = int.from_bytes(buf[:4], **kwargs)
+        assert _length == len(buf)
         _type = int.from_bytes(buf[4:5], **kwargs)
         _data = buf[5:]
         return Msg(_type, _data)
@@ -39,13 +39,13 @@ class Msg:
     def __init__(self, _type: int, _data: bytes):
         self.type = _type
         self.data = _data
-        self.length = len(self.data) + 8
+        self.length = len(_data) + 5
 
     def to_bytes(self):
-        self.length = len(self.data) + 8
+        self.length = len(self.data) + 5
         kwargs = dict(byteorder=BYTEORDER, signed=True)
         buf = self.length.to_bytes(4, **kwargs)
-        buf += self.type.to_bytes(4, **kwargs)
+        buf += self.type.to_bytes(1, **kwargs)
         buf += self.data
         return buf
 

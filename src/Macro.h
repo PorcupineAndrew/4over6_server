@@ -40,7 +40,7 @@ typedef unsigned char bool;
 #define NETWORK_REQUEST     102
 #define NETWORK_RESPONSE    103
 #define KEEPALIVE           104
-#define MSG_HEADER_SIZE     (sizeof(struct Msg) - 4096)
+#define MSG_HEADER_SIZE     5
 
 // 服务器相关
 #define SERVER_LISTEN_PORT  10086
@@ -52,14 +52,14 @@ typedef unsigned char bool;
 #define MAXEVENTS           64
 
 // 输出相关
-#define COLOR_RED      "\x1b[31m"
-#define COLOR_GREEN    "\x1b[32m"
-#define COLOR_YELLOW   "\x1b[33m"
-#define COLOR_BLUE     "\x1b[34m"
-#define COLOR_MAGENTA  "\x1b[35m"
-#define COLOR_CYAN     "\x1b[36m"
-#define COLOR_WHITE    "\x1b[37m"
-#define COLOR_RESET    "\x1b[0m"
+#define COLOR_RED           "\x1b[31m"
+#define COLOR_GREEN         "\x1b[32m"
+#define COLOR_YELLOW        "\x1b[33m"
+#define COLOR_BLUE          "\x1b[34m"
+#define COLOR_MAGENTA       "\x1b[35m"
+#define COLOR_CYAN          "\x1b[36m"
+#define COLOR_WHITE         "\x1b[37m"
+#define COLOR_RESET         "\x1b[0m"
 
 #define INFO_LOGGER         COLOR_GREEN"INFO"COLOR_RESET
 #define DEBUG_LOGGER        COLOR_CYAN"DEBUG"COLOR_RESET

@@ -12,8 +12,9 @@
 **/
 struct Msg {
     int length;
-    char type;          // NOTE: padding here
+    char type;
     char data[4096];
+    // padding: 3 byte
 };
 
 #endif

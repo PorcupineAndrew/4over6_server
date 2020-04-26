@@ -25,7 +25,11 @@ void init_keep_alive_thread();
 void packet_forward();
 
 int main() {
-    assert(MSG_HEADER_SIZE == 8);
+    {
+        struct Msg test;
+        assert((void *)&test+MSG_HEADER_SIZE == (void*)test.data);
+    }
+
     int running = 1;
 
     init_server(

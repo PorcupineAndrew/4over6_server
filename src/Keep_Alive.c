@@ -25,9 +25,13 @@ void* keep_alive_poll() {
                 struct Msg *kp_msg = (struct Msg *) keepalive_buf;
                 kp_msg->length = MSG_HEADER_SIZE;
                 kp_msg->type = KEEPALIVE;
-                if (send(fd, (void *)kp_msg, kp_msg->length, 0) < 0) {
+                int ret;
+                if ((ret = send(fd, (void *)kp_msg, kp_msg->length, 0)) < 0) {
                     perror("send kp_msg");
                 }
+                debugf("keepalive len %d\n", kp_msg->length);
+                debugf("struct size %ld\n", sizeof(kp_msg));
+                debugf("send size %d\n", ret);
             }
         }
     }
