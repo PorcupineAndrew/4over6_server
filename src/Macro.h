@@ -32,9 +32,9 @@ typedef unsigned char bool;
 #define POOL_START_ADDR IPADDR(13, 8, 1, 2)                                 // 地址池起始地址
 
 #define ROUTE               "0.0.0.0"
-#define DNS1                "202.38.120.242"
-#define DNS2                "8.8.8.8"
-#define DNS3                "202.106.0.20"
+#define DNS1                "114.114.114.114"
+#define DNS2                "223.5.5.5"
+#define DNS3                "119.29.29.29"
 
 // 消息相关
 #define IP_REQUEST          100
