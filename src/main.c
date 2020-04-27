@@ -1,7 +1,7 @@
 #include "Msg.h"
 #include "User_Info_Table.h"
 
-#define IGNORE 1
+#define IGNORE 0
 
 int listen_fd;
 int epfd;
@@ -24,26 +24,34 @@ int make_socket_non_blocking(int fd);
 void init_keep_alive_thread();
 void packet_forward();
 
+void error_handler(int sig) {
+    void *arr[10];
+    size_t size = backtrace(arr, 10);
+    fprintf(stderr, "Error: signal %d:\n", sig);
+    backtrace_symbols_fd(arr, size, STDERR_FILENO);
+    exit(EXIT_FAILURE);
+}
+
 int main() {
     {
         struct Msg test;
         assert((void *)&test+MSG_HEADER_SIZE == (void*)test.data);
     }
+    signal(SIGABRT, error_handler);
 
     int running = 1;
 
     init_server(
         SERVER_LISTEN_PORT,
-        // NULL,
-        "fe80::d4a2:99ab:92c8:f22",
+        SERVER_LISTEN_ADDR,
         MAX_LISTEN_QUEUE,
-        "wlp2s0"
+        DV_NET_NAME
     );
 
     epoll_init(MAXEVENTS);
 
 #if !IGNORE
-    init_tun(MY_TUN_NAME);
+    init_tun(DV_TUN_NAME);
     // 使用epoll而非thread
     if (add_epoll(tun_fd) < 0) {
         perror("add epoll");

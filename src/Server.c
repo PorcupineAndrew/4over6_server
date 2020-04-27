@@ -33,6 +33,6 @@ void init_server(int port, char* addr, int cons, char* if_name) {
     inet_ntop(AF_INET6, &server_addr.sin6_addr, s, sizeof(s));
     infof( 
         "Server init\n\taddr: %s\n\tport: %d\n\tscope_id: %d\n",
-        s, server_addr.sin6_port, server_addr.sin6_scope_id
+        s, ntohs(server_addr.sin6_port), server_addr.sin6_scope_id
     );
 } 

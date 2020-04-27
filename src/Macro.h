@@ -19,6 +19,8 @@
 #include <sys/ioctl.h>
 #include <assert.h>
 #include <time.h>
+#include <execinfo.h>
+#include <signal.h>
 
 #ifndef __cplusplus
 typedef unsigned char bool;
@@ -27,7 +29,7 @@ typedef unsigned char bool;
 // 地址相关
 #define N_USERS 128                                                         // 地址池大小
 #define IPADDR(a, b, c, d) (((a) << 24) | ((b) << 16) | ((c) << 8) | (d))   // 地址转换
-#define POOL_START_ADDR IPADDR(13, 8, 0, 2)                                 // 地址池起始地址
+#define POOL_START_ADDR IPADDR(13, 8, 1, 2)                                 // 地址池起始地址
 
 #define ROUTE               "0.0.0.0"
 #define DNS1                "202.38.120.242"
@@ -43,10 +45,12 @@ typedef unsigned char bool;
 #define MSG_HEADER_SIZE     5
 
 // 服务器相关
+#define SERVER_LISTEN_ADDR  "2402:f000:4:72:808::4016"
 #define SERVER_LISTEN_PORT  10086
 #define MAX_LISTEN_QUEUE    16
 #define KEEPLIVE_COUNT      20
-#define MY_TUN_NAME         "tun0"
+#define DV_NET_NAME         "eno4"
+#define DV_TUN_NAME         "tun0"
 
 // epoll相关
 #define MAXEVENTS           64
@@ -64,7 +68,7 @@ typedef unsigned char bool;
 #define INFO_LOGGER         COLOR_GREEN"INFO"COLOR_RESET
 #define DEBUG_LOGGER        COLOR_CYAN"DEBUG"COLOR_RESET
 #define ERROR_LOGGER        COLOR_RED"ERROR"COLOR_RESET
-#define TRACE_FMT           COLOR_WHITE" %s:%d:%s() "COLOR_RESET
+#define TRACE_FMT           COLOR_YELLOW" %s:%d:%s() "COLOR_RESET
 #define TIME_FMT            "%Y-%m-%d %H:%M:%S"
 
 #define INFO                1
@@ -75,7 +79,7 @@ typedef unsigned char bool;
             do { if (INFO) { char _buffer_[26]; time_t _timer_ = time(NULL); \
             struct tm *_tm_info_ = localtime(&_timer_); \
             strftime(_buffer_, 26, TIME_FMT, _tm_info_); \
-            fprintf(stdout, INFO_LOGGER COLOR_WHITE" %s "COLOR_RESET fmt, \
+            fprintf(stdout, INFO_LOGGER COLOR_YELLOW" %s "COLOR_RESET fmt, \
             _buffer_, __VA_ARGS__); }} while (0)
 #define info(x) infof("%s", (x))
 
