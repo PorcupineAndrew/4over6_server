@@ -29,23 +29,27 @@ char packet_buf[1500];
 struct Msg msg_buf;
 
 void packet_forward() {
-    memset(packet_buf, 0, 1500);
+    debug("packet_forward\n");
+    memset(packet_buf, 0, sizeof(packet_buf));
     if (read(tun_fd, (void *)packet_buf, 20) < 0) {
         perror("read ip header");
         return;
     }
+    debug("header readed\n");
 
     struct iphdr *hdr = (struct iphdr*)packet_buf;
     int length = ntohs(hdr->tot_len);
     int dst_addr = hdr->daddr;
+    debugf("length: %d\n", length);
     if (read(tun_fd, (void *)&packet_buf[20], length-20) != length-20) {
         perror("read ip packet");
     }
+    debug("data readed\n");
 
     char sbuf[INET_ADDRSTRLEN], dbuf[INET_ADDRSTRLEN];
     inet_ntop(AF_INET, &hdr->saddr, sbuf, sizeof(sbuf));
-    inet_ntop(AF_INET, &hdr->daddr, dbuf, sizeof(sbuf));
-    infof("packet from %s to %s with size %d", sbuf, dbuf, length);
+    inet_ntop(AF_INET, &hdr->daddr, dbuf, sizeof(dbuf));
+    infof("packet from %s to %s with size %d\n", sbuf, dbuf, length);
 
     if (POOL_START_ADDR <= dst_addr && dst_addr < POOL_START_ADDR + N_USERS) {
         struct User_Info *user_info = get_user_by_IPv4(dst_addr, &MUTEX);

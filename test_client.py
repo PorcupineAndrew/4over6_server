@@ -2,7 +2,7 @@
 #-*- coding: utf-8 -*-
 # **********************************************************************
 # * Description   : test script for 4over6
-# * Last change   : 08:55:54 2020-04-26
+# * Last change   : 10:29:29 2020-04-27
 # * Author        : Yihao Chen
 # * Email         : chenyiha17@mails.tsinghua.edu.cn
 # * License       : www.opensource.org/licenses/bsd-license.php
@@ -13,10 +13,10 @@ import threading
 
 BYTEORDER = 'little'
 SERVER = {
-    "v6addr": "fe80::d4a2:99ab:92c8:f22", 
+    "v6addr": "2402:f000:4:72:808::4016", 
     "port": 10086,
     "flow_info": 0,
-    "scope_id": 2,
+    "scope_id": 3,
 }
 
 class Msg:

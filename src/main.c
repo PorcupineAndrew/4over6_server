@@ -170,6 +170,7 @@ int main() {
                     if (write(tun_fd, msg.data, send_len) != send_len) {
                         perror("write tun");
                     }
+                    debugf("send data: %d\n", send_len);
                 #endif
                 } else if (msg.type == KEEPALIVE) {
                     debug("keepalive\n");
