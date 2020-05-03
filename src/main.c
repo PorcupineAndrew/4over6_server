@@ -52,6 +52,7 @@ int main() {
 
 #if !IGNORE
     init_tun(DV_TUN_NAME);
+    // make_socket_non_blocking(tun_fd);
     // 使用epoll而非thread
     if (add_epoll(tun_fd) < 0) {
         perror("add epoll");
@@ -122,6 +123,7 @@ int main() {
                 packet_forward();
             } else if (events[i].events & EPOLLIN) {
                 // 用户包处理
+                debug("user msg\n");
                 int fd = events[i].data.fd;
                 struct User_Info *user_info = get_user_by_fd(fd, &MUTEX);
                 if (user_info == NULL) {
@@ -139,7 +141,7 @@ int main() {
                 while (ret < MSG_HEADER_SIZE) {
                     ret += recv(fd, (void*)&msg+ret, MSG_HEADER_SIZE-ret, 0);
                 }
-                debug("recv msg header\n");
+                debugf("recv msg header: length=%d, type=%d\n", msg.length, msg.type);
 
                 int len = msg.length;
                 if (len > 4096 || len < MSG_HEADER_SIZE) {
@@ -147,7 +149,11 @@ int main() {
                     continue;
                 }
                 while (ret < len) {
-                    ret += recv(fd, (void*)&msg+ret, len-ret, 0);
+                    int r = recv(fd, (void*)&msg+ret, len-ret, 0);
+                    if (r <= 0) {
+                        continue;
+                    }
+                    ret += r;
                 }
                 debug("recv msg data\n");
 

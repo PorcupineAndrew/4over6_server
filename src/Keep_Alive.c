@@ -20,6 +20,7 @@ void* keep_alive_poll() {
                 user_info_table[i].fd = -1;
                 rm_epoll(fd);
                 close(fd);
+                debug("close connection\n");
             } else if (--user_info_table[i].count == 0) {
                 user_info_table[i].count = KEEPLIVE_COUNT;
                 struct Msg *kp_msg = (struct Msg *) keepalive_buf;
