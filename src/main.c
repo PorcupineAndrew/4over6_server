@@ -52,7 +52,7 @@ int main() {
 
 #if !IGNORE
     init_tun(DV_TUN_NAME);
-    // make_socket_non_blocking(tun_fd);
+    make_socket_non_blocking(tun_fd);
     // 使用epoll而非thread
     if (add_epoll(tun_fd) < 0) {
         perror("add epoll");

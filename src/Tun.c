@@ -25,52 +25,39 @@ void init_tun(const char* devname) {
     infof("Tun init: %s\n", devname);
 }
 
-char packet_buf[1500];
+char packet_buf[4096];
 struct Msg msg_buf;
 
 void packet_forward() {
     info("packet_forward\n");
     memset(packet_buf, 0, sizeof(packet_buf));
-    if (read(tun_fd, (void *)packet_buf, 20) < 0) {
-        perror("read ip header");
+    int ret;
+    if ((ret = read(tun_fd, (void *)packet_buf, sizeof(packet_buf))) < 0) {
+        perror("read ip packet");
         return;
     }
-    debug("header readed\n");
+    debugf("packet readed: %d\n", ret);
 
     struct iphdr *hdr = (struct iphdr*)packet_buf;
     int length = ntohs(hdr->tot_len);
     unsigned int dst_addr = hdr->daddr;
     debugf("length: %d\n", length);
-    if (length < 20 || length > 1500) {
+    if (length != ret) {
         debug("invalid length\n");
-        return;
+        length = ret;
     }
 
-    // int ret = 20;
-    // while (ret < length) {
-    //     int r = read(tun_fd, (void*)&packet_buf[ret], length-ret);
-    //     if (r <= 0) {
-    //         continue;
-    //     }
-    //     ret += r;
-    //     debugf("read: %d\n", r);
+    // if (read(tun_fd, (void *)&packet_buf[20], length-20) <= 0) {
+    //     perror("read ip packet");
+    //     return;
     // }
-
-    if (read(tun_fd, (void *)&packet_buf[20], length-20) <= 0) {
-        perror("read ip packet");
-        return;
-    }
-    debug("data readed\n");
+    // debug("data readed\n");
 
     char sbuf[INET_ADDRSTRLEN], dbuf[INET_ADDRSTRLEN];
     inet_ntop(AF_INET, &hdr->saddr, sbuf, sizeof(sbuf));
     inet_ntop(AF_INET, &hdr->daddr, dbuf, sizeof(dbuf));
     infof("packet from %s to %s with size %d\n", sbuf, dbuf, length);
 
-    // debugf("1:%08x\n", dst_addr);
-    // debugf("2:%08x\n", htonl(dst_addr));
-    // debugf("3:%08x\n", ntohl(dst_addr));
-    // debugf("4:%08x\n", POOL_START_ADDR);
     if (htonl(POOL_START_ADDR) <= dst_addr && dst_addr < htonl(POOL_START_ADDR + N_USERS)) {
         struct User_Info *user_info = get_user_by_IPv4(dst_addr, &MUTEX);
         if (user_info == NULL) {
