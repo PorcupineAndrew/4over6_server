@@ -1,76 +1,164 @@
-#include "User_Info_Table.h"
+#include "Msg.h"
+#include "User_Info.h"
+#include "Buffer.h"
 
-void init_user_info(uint32_t start_addr, int n_users) {
-    for(int i = 0; i < n_users; i++) {
-        user_info_table[i].fd = -1;
-        user_info_table[i].v4addr.s_addr = htonl(start_addr+i); // 网络字节序
+void user_info_init() {
+    for (int i = 0; i < MAX_CLIENTS; i++) {
+        sprintf(users[i].addr, ADDRESS_PREFIX ".%d", i);
+        users[i].is_free = 1;
+        users[i].fd = -1;
     }
+    users[0].is_free = 0;
+    users[1].is_free = 0;
+    users[255].is_free = 0;
 
-    char s[INET_ADDRSTRLEN];
-    inet_ntop(AF_INET, &user_info_table[0].v4addr.s_addr, s, sizeof(s));
-    infof( 
-        "User info init\n\tstart_addr: %s\n\tmax_users: %d\n",
-        s, n_users
-    );
+    for (int i = 0; i < MAX_FDS; i++) {
+        bufs[i].used = 0;
+    }
 }
 
-int insert_user_table(int infd, struct in6_addr *inaddr, int n_users, pthread_mutex_t *mutex) {
-	pthread_mutex_lock(mutex);
-    int i = 0;
-    for(; i < n_users; i++) {
-        if (user_info_table[i].fd == -1) {
-            user_info_table[i].fd = infd;
-            user_info_table[i].count = KEEPLIVE_COUNT;
-            user_info_table[i].secs = time(NULL);
-            memcpy(&user_info_table[i].v6addr, inaddr, sizeof(struct in6_addr));
-            break;
+int allocate_ip_addr(int client_fd) {
+    int i;
+    for(i = 0; i < MAX_CLIENTS; i ++)
+        if (users[i].is_free) {
+            users[i].is_free = 0;
+
+            users[i].fd = client_fd;
+            users[i].last_heartbeat_sent_secs = time(0);
+            users[i].last_heartbeat_recved_secs = time(0);
+            inet_pton(AF_INET, users[i].addr, (void *)&users[i].v4addr);
+
+            struct sockaddr_in6 clientaddr;
+            socklen_t addrsize = sizeof(clientaddr);
+            getpeername(client_fd, (struct sockaddr *)&clientaddr, &addrsize);
+            users[i].v6addr = clientaddr.sin6_addr;
+            
+            return i;
         }
-    }
-	pthread_mutex_unlock(mutex);
-
-    if (i == n_users) return -1;
-
-    char s4[INET_ADDRSTRLEN], s6[INET6_ADDRSTRLEN];
-    inet_ntop(AF_INET, &user_info_table[i].v4addr.s_addr, s4, sizeof(s4));
-    inet_ntop(AF_INET6, inaddr, s6, sizeof(s6));
-    infof( 
-        "User info update\n\tindex: %d\n\tv4_addr: %s\n\tv6_addr: %s\n",
-        i, s4, s6
-    );
-
-    return 0;
+    return -1;
 }
 
-struct User_Info* get_user_by_IPv4(uint32_t addr, pthread_mutex_t *mutex) {
-    pthread_mutex_lock(mutex);
-    for (int i = 0; i < N_USERS; i++) {
-        if (user_info_table[i].fd != -1 && (user_info_table[i].v4addr.s_addr == addr)) {
-            pthread_mutex_unlock(mutex);
-            return &user_info_table[i];
+int deallocate_ip_addr(int client_fd) {
+    int i;
+    for(i = 0; i < MAX_CLIENTS; i ++)
+        if (users[i].fd == client_fd && !users[i].is_free) {
+            users[i].is_free = 1;
+            users[i].fd = -1;
+            return i;
         }
-    }
-    pthread_mutex_unlock(mutex);
-    return NULL;
+    return -1;
 }
 
-struct User_Info* get_user_by_fd(int fd, pthread_mutex_t *mutex) {
-    pthread_mutex_lock(mutex);
-    for (int i = 0; i < N_USERS; i++) {
-        if (user_info_table[i].fd == fd) {
-            pthread_mutex_unlock(mutex);
-            return &user_info_table[i];
+int search_user_info_by_fd(int client_fd) {
+    int i;
+    for(i = 0; i < MAX_CLIENTS; i ++)
+        if (users[i].fd == client_fd && !users[i].is_free) {
+            return i;
         }
-    }
-    pthread_mutex_unlock(mutex);
-    return NULL;
+    return -1;
 }
 
-void rm_user_by_fd(int fd, pthread_mutex_t *mutex) {
-    pthread_mutex_lock(mutex);
-    for (int i = 0; i < N_USERS; i++) {
-        if (user_info_table[i].fd == fd) {
-            user_info_table[i].fd = -1;
+int search_user_info_by_addr(uint32_t addr) {
+    int i;
+    for(i = 0; i < MAX_CLIENTS; i ++)
+        if (users[i].v4addr.s_addr == addr && !users[i].is_free) {
+            return i;
         }
+    return -1;
+}
+
+void free_client_fd(int client_fd, int epoll_fd) {
+    if (epoll_remove_fd(epoll_fd, client_fd) < 0) {
+        return;
     }
-    pthread_mutex_unlock(mutex);
+    deallocate_ip_addr(client_fd);
+    close(client_fd);
+}
+
+int write_all(int fd, void* buf, int size) {
+    int offset = 0;
+    uint8_t* w = (uint8_t*)buf;
+    while(offset < size) {
+        int ret;
+        if ((ret = write(fd, w+offset, size-offset)) < 0) {
+            perrorf("write data to fd = %d", fd);
+            return ret;
+        }
+        offset += ret;
+    }
+    return offset;
+}
+
+void process_client(int client_fd, int tun_fd, int epoll_fd) {
+    info("process_client\n");
+
+    char* buf = bufs[client_fd].buf;
+    int* nread = &bufs[client_fd].used;
+    
+    ssize_t size;
+    size = read(client_fd, buf+*nread, BUF_SIZE-*nread);
+
+    if (size <= 0) {
+        if (errno == ECONNRESET || size == 0) {
+            debug("Connection ternimated\n");
+        } else {
+            perror("read client");
+        }
+        free_client_fd(client_fd, epoll_fd);
+        return;
+    }
+    *nread += size;
+
+    while(1) {
+        if (*nread < sizeof(Msg)) break;
+
+        Msg msg = *(Msg *)buf;
+        int msglen = msg.length;
+        if (*nread < msg.length) break;
+
+        if (msg.type == TYPE_IP_REQUEST) {
+            debug("ip request\n");
+            int id;
+            if ((id = allocate_ip_addr(client_fd)) < 0) {
+                debug("ip address pool is full\n");
+                return;
+            }
+
+            char bufreply[BUF_SIZE];
+            sprintf(bufreply, "%s %s %s %s %s", users[id].addr, ROUTE, DNS1, DNS2, DNS3);
+            int buflen = strlen(bufreply);
+
+            Msg reply;
+            reply.type = TYPE_IP_RESPONSE;
+            reply.length = buflen + sizeof(Msg);
+            if (write_all(client_fd, &reply, sizeof(reply)) < (int)sizeof(reply)) {
+                debug("send reply header failed\n");
+                return;
+            }
+            if (write_all(client_fd, bufreply, buflen) < buflen) {
+                debug("send reply data failed\n");
+                return;
+            }
+        }
+        else if (msg.type == TYPE_INET_REQUEST) {
+            debug("net request\n");
+            int datalen = msglen - sizeof(Msg);
+            if (write_all(tun_fd, buf+sizeof(Msg), datalen) < datalen) {
+                debug("send data to tun failed\n");
+                return;
+            }
+        }
+        else if (msg.type == TYPE_KEEPALIVE) {
+            debug("keep alive\n");
+            int id = search_user_info_by_fd(client_fd);
+            users[id].last_heartbeat_recved_secs = time(0);
+        }
+        else {
+            debugf("unknown type of data from client fd %d\n", client_fd);
+        }
+
+        debugf("Package client - length: %d\n", msglen);
+        memmove(buf, buf + msglen, *nread - msglen);
+        *nread -= msglen;
+    }
 }

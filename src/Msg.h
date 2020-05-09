@@ -10,11 +10,9 @@
  * 103  |      |      | 上网回应
  * 104  |      | null | 心跳包
 **/
-struct Msg {
+typedef struct Msg {
     int length;
     char type;
-    char data[4096];
-    // padding: 3 byte
-};
+} __attribute__((packed)) Msg;
 
 #endif

@@ -1,80 +1,83 @@
 #include "Msg.h"
-#include "User_Info_Table.h"
+#include "User_Info.h"
+#include "Buffer.h"
 
-extern int tun_fd;
-extern pthread_mutex_t MUTEX;
-struct User_Info* get_user_by_IPv4(uint32_t addr, pthread_mutex_t *mutex);
-
-void init_tun(const char* devname) {
-    if ((tun_fd = open("/dev/net/tun", O_RDWR)) < 0) {
+int init_tun(const char* devname) {
+    int fd;
+    if ((fd = open("/dev/net/tun", O_RDWR)) < 0) {
         perror("open /dev/net/tun");
         exit(EXIT_FAILURE);
     }
 
     struct ifreq ifr;
     memset(&ifr, 0, sizeof(ifr));
-    ifr.ifr_flags |= IFF_TUN | IFF_NO_PI;
+    ifr.ifr_flags = IFF_TUN | IFF_NO_PI;
     strncpy(ifr.ifr_name, devname, IFNAMSIZ);
 
-    // ioctl会使用ifr.ifr_name作为隧道名
-    if (ioctl(tun_fd, TUNSETIFF, (void*) &ifr) < 0) {
+    if (ioctl(fd, TUNSETIFF, (void*) &ifr) < 0) {
         perror("ioctl TUNSETIFF");
         exit(EXIT_FAILURE);
     }
 
+    if (system("ifconfig " DV_TUN_NAME " " ADDRESS_PREFIX ".1 netmask " NETMASK " up") != 0) {
+        perror("ifconfig");
+        exit(EXIT_FAILURE);
+    }
+    if (system("iptables -t nat -A POSTROUTING -s " ADDRESS_PREFIX ".0/24 -j MASQUERADE") != 0) {
+        perror("iptables");
+        exit(EXIT_FAILURE);
+    }
+
     infof("Tun init: %s\n", devname);
+
+    return fd;
 }
 
-char packet_buf[4096];
-struct Msg msg_buf;
+void process_tun(int tun_fd) {
+    char* buf = bufs[tun_fd].buf;
+    int* nread = &bufs[tun_fd].used;
 
-void packet_forward() {
-    info("packet_forward\n");
-    memset(packet_buf, 0, sizeof(packet_buf));
-    int ret;
-    if ((ret = read(tun_fd, (void *)packet_buf, sizeof(packet_buf))) < 0) {
-        perror("read ip packet");
+    int size;
+    if ((size = read(tun_fd, buf+*nread, BUF_SIZE-*nread)) < 0) {
+        perror("read from tun");
         return;
     }
-    debugf("packet readed: %d\n", ret);
+    *nread += size;
 
-    struct iphdr *hdr = (struct iphdr*)packet_buf;
-    int length = ntohs(hdr->tot_len);
-    unsigned int dst_addr = hdr->daddr;
-    debugf("length: %d\n", length);
-    if (length != ret) {
-        debug("invalid length\n");
-        length = ret;
-    }
+    while(1) {
+        if (*nread < (int)sizeof(struct iphdr))
+            break;
+        
+        struct iphdr hdr = *(struct iphdr *)buf;
+        int iplen = *nread;
+        if (*nread < iplen) break;
 
-    // if (read(tun_fd, (void *)&packet_buf[20], length-20) <= 0) {
-    //     perror("read ip packet");
-    //     return;
-    // }
-    // debug("data readed\n");
+        do {
+            int id = search_user_info_by_addr(hdr.daddr);
+            if (id == -1) {
+                debug("can not locate ip packet dest\n");
+                continue;
+            }
+            int client_fd = users[id].fd;
 
-    char sbuf[INET_ADDRSTRLEN], dbuf[INET_ADDRSTRLEN];
-    inet_ntop(AF_INET, &hdr->saddr, sbuf, sizeof(sbuf));
-    inet_ntop(AF_INET, &hdr->daddr, dbuf, sizeof(dbuf));
-    infof("packet from %s to %s with size %d\n", sbuf, dbuf, length);
+            Msg reply;
+            reply.type = TYPE_INET_RESPONSE;
+            reply.length = iplen + sizeof(reply);
 
-    if (htonl(POOL_START_ADDR) <= dst_addr && dst_addr < htonl(POOL_START_ADDR + N_USERS)) {
-        struct User_Info *user_info = get_user_by_IPv4(dst_addr, &MUTEX);
-        if (user_info == NULL) {
-            debugf("no valid user for %s\n", dbuf);
-            return;
-        } else {
-            debug("find user\n");
-        }
+            int ret;
+            if ((ret = write_all(client_fd, &reply, sizeof(reply))) < (int)sizeof(reply)) {
+                debug("send reply header failed\n");
+                return;
+            }
+            if ((ret = write_all(client_fd, buf, iplen)) < 0) {
+                debug("send reply data failed\n");
+                return;
+            }
 
-        msg_buf.type = NETWORK_RESPONSE;
-        msg_buf.length = length + MSG_HEADER_SIZE;
-        memcpy(msg_buf.data, packet_buf, length);
+            infof("Package tunnel - length: %lu\n", iplen + sizeof(Msg));
+        } while(0);
 
-        if (send(user_info->fd, (void *)&msg_buf, msg_buf.length, 0) < 0) {
-            perror("send response");
-        }
-    } else {
-        debug("invalid src address\n");
+        memmove(buf, buf + iplen, *nread - iplen);
+        *nread -= iplen;
     }
 }

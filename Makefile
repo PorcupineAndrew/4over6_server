@@ -11,7 +11,7 @@ TARGET := $(BINDIR)/4over6_server
 SRCS = $(sort $(wildcard $(SRCDIR)/*.c))
 HEADS = $(sort $(wildcard $(SRCDIR)/*.h))
 OBJS = $(patsubst $(SRCDIR)/%.c,$(OBJDIR)/%.o,$(sort $(wildcard $(SRCDIR)/*.c)))
-DLIBS = -lpthread
+DLIBS =
 
 $(TARGET):$(OBJS) $(HEADS)
 	$(CC) $(CFLAGS) -o $@ $^ $(DLIBS)
