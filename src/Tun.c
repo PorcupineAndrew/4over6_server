@@ -19,6 +19,7 @@ int init_tun(const char* devname) {
         exit(EXIT_FAILURE);
     }
 
+#if (SET_TUN)
     if (system("ifconfig " DV_TUN_NAME " " ADDRESS_PREFIX ".1 netmask " NETMASK " up") != 0) {
         perror("ifconfig");
         exit(EXIT_FAILURE);
@@ -27,6 +28,7 @@ int init_tun(const char* devname) {
         perror("iptables");
         exit(EXIT_FAILURE);
     }
+#endif
 
     infof("Tun init: %s\n", devname);
 

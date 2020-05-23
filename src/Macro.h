@@ -67,9 +67,21 @@
 #define TRACE_FMT           COLOR_YELLOW " %s:%d:%s() " COLOR_RESET
 #define TIME_FMT            "%Y-%m-%d %H:%M:%S"
 
+#ifndef SET_TUN
+#define SET_TUN             1
+#endif
+
+#ifndef INFO
 #define INFO                1
+#endif
+
+#ifndef DEBUG
 #define DEBUG               1
+#endif
+
+#ifndef ERROR
 #define ERROR               1
+#endif
 
 #define infof(fmt, ...) \
             do { if (INFO) { char _buffer_[26]; time_t _timer_ = time(NULL); \
